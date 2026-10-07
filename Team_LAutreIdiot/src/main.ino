@@ -140,13 +140,13 @@ void maj_adjacence_capteur_ir()
     switch (orientation)
     {
       case NORD:
-        matrice[pos_actuelle][pos_actuelle + 3] = 0;
+        adjacence[pos_actuelle][pos_actuelle + 3] = 0;
         break;
       case OUEST:
-        matrice[pos_actuelle][pos_actuelle - 1] = 0;
+        adjacence[pos_actuelle][pos_actuelle - 1] = 0;
         break;
       case EST:
-        matrice[pos_actuelle][pos_actuelle + 1] = 0;
+        adjacence[pos_actuelle][pos_actuelle + 1] = 0;
         break;
       default:
         // 
@@ -169,8 +169,34 @@ int somme_rangee (int rangee[])
   return somme;
 }
 
+void ajustement_PID()
+{
+  Serial.println("Allo");
+}
+
 // fonction de deplacement
-void avancer() {}
+void deplacement(int distance)
+{
+  int deplacement_total_droit = 0;
+  int deplacement_total_gauche = 0;
+
+  SOFT_TIMER_SetCallback(0, ajustement_PID);
+  SOFT_TIMER_SetDelay(0, 100);
+
+  SOFT_TIMER_Enable(0);
+  while (deplacement_total_droit < distance)
+  {
+    SOFT_TIMER_Update();
+    delay(10);// Delais pour decharger le CPU
+  };
+  SOFT_TIMER_Disable(0);
+}
+
+
+void avancer() 
+{
+
+}
 void reculer() {}
 void tourner_gauche() {}
 void tourner_droite() {}
@@ -223,6 +249,7 @@ void setup(){
 Fonctions de boucle infini (loop())
 **************************************************************************** */
 void loop() {
+  /*
   int pos_actuelle = historique[increment_historique];
   if (pos_actuelle >= 27)
   {
@@ -251,8 +278,6 @@ void loop() {
       }
     }
   }
+  */
 
-
-  // SOFT_TIMER_Update(); // A decommenter pour utiliser des compteurs logiciels
-  delay(10);// Delais pour decharger le CPU
 }
