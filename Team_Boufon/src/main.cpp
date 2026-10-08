@@ -31,8 +31,10 @@ REGLES POUR TRAVAILLER A 4 DANS CE FICHIER
 #define PIN_VERT      48    
 #define PIN_ROUGE     49   
 #define PIN_5KHZ      A0   
-#define PIN_AMBIANT   A1    
-#define SEUIL_SIFFLET 50   
+#define PIN_AMBIANT   A1  
+// ---- Seuils ---- base sur 3,2V min : 3,2 / 5 * 1024 = 655, max : 3,49 / 5 * 1024 = 714
+#define SEUIL_SIFFLET 614
+#define MAX_SIFFLET   714
 
 // ---- Moteurs et PI  ----
 #define VITESSE    0.40
@@ -164,27 +166,29 @@ void faireFace(int coteVoulu) {
    SECTION 2 : CAPTEURS
    ============================================================================ */
 
-// VRAI s'il y a un panneau DANS LA CASE ACTUELLE devant le robot.
-// Ne doit PAS voir le panneau de la case suivante (calibrer la portee).
-// - 7 lectures de PIN_VERT / PIN_ROUGE (digitalRead), 3 ms entre chaque
-// - VRAI si au moins 4 lectures disent "obstacle" (combinaison a confirmer)
-bool murDevant() {
+// Fonction de mur devant() : retourne vrai ou faux
+bool murDevant() 
+{
   // Obstacle qui doit etre d'au moins 4 sur 7
   int obstacle = 0;
   // On boucle 7 fois
-  for (int i = 0; i < 7; i++) {
+  for (int i = 0; i < 7; i++) 
+  {
     // Lecture des pins
     vert = digitalRead(PIN_VERT);
     rouge = digitalRead(PIN_ROUGE);
     // Detection de mur
-    if (vert == HIGH && rouge == HIGH) {
+    if (vert == HIGH && rouge == HIGH)
+    {
       obstacle ++;
     }
-    if(vert == HIGH || rouge == HIGH) {
+    if(vert == HIGH || rouge == HIGH) 
+    {
       obstacle ++;
     }
     // Si on a 4 positif, il y a un mur
-    if (obstacle >= 4) {
+    if (obstacle >= 4) 
+    {
       return true;
     }
     delay(3);
@@ -193,11 +197,27 @@ bool murDevant() {
   return false;
 }
 
-// VRAI si le sifflet de 5 kHz est entendu.
-// - 20 lectures (analogRead(PIN_5KHZ) - analogRead(PIN_AMBIANT)) > SEUIL_SIFFLET
-// - VRAI si au moins 18 sur 20
+// Fonction de detection de sifflet 5kHz : retourne vrai ou faux
 bool sifflet5kHz() {
-  // TODO
+  // Son qui doit etre detecte au moins 18 fois sur 20
+  int son = 0;
+  // 20 iterations
+  for (int i = 0; i < 20; i++)
+  {
+    // Lecture du sifflet PIN A0
+    int sifflet = analogRead(PIN_5KHZ);
+    // s'assurer qu'il s'agit du sifflet
+    if (sifflet >= SEUIL_SIFFLET && sifflet <= MAX_SIFFLET)
+    {
+      son ++; 
+    }
+    // Si on a 18 sons, il y a un sifflet
+    if (son >= 18)
+    {
+      return true;
+    }
+  }
+  // Pas de sifflet
   return false;
 }
 
