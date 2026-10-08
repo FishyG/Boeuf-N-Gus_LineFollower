@@ -169,7 +169,27 @@ void faireFace(int coteVoulu) {
 // - 7 lectures de PIN_VERT / PIN_ROUGE (digitalRead), 3 ms entre chaque
 // - VRAI si au moins 4 lectures disent "obstacle" (combinaison a confirmer)
 bool murDevant() {
-  // TODO
+  // Obstacle qui doit etre d'au moins 4 sur 7
+  int obstacle = 0;
+  // On boucle 7 fois
+  for (int i = 0; i < 7; i++) {
+    // Lecture des pins
+    vert = digitalRead(PIN_VERT);
+    rouge = digitalRead(PIN_ROUGE);
+    // Detection de mur
+    if (vert == HIGH && rouge == HIGH) {
+      obstacle ++;
+    }
+    if(vert == HIGH || rouge == HIGH) {
+      obstacle ++;
+    }
+    // Si on a 4 positif, il y a un mur
+    if (obstacle >= 4) {
+      return true;
+    }
+    delay(3);
+  }
+  // Pas de mur
   return false;
 }
 
