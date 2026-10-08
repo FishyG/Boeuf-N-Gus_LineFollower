@@ -7,6 +7,32 @@ Date: Derniere date de modification
 */
 
 /*
+Numerotation des cases du parcours
++-----+-----+-----+
+|  27    28    29 |
+|                 |
+|  24    25    26 |
+|                 |
+|  21    22    23 |
+|                 |
+|  18    19    20 |
+|                 |
+|  15    16    17 |
+|                 |
+|  12    13    14 |
+|                 |
+|   9    10    11 |
+|                 |
+|   6     7     8 |
+|                 |
+|   3     4     5 |
+|                 |
+|   0     1     2 |
++-----+-----+-----+
+*/
+
+
+/*
 Inclure les librairies de functions que vous voulez utiliser
 */
 #include <LibRobus.h>
@@ -16,6 +42,8 @@ Variables globales et defines
  -> defines...
  -> L'ensemble des fonctions y ont acces
 */
+
+// 92.72 + 92.68 - 6.58 - 6.62 + 2
 
 #define PPT 3200.0
 #define PULSES_PAR_MM (3200.0 / (PI * 76.2))
