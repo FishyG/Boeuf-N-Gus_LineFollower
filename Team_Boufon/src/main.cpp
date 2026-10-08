@@ -216,6 +216,7 @@ bool sifflet5kHz() {
     {
       return true;
     }
+    delay(2);
   }
   // Pas de sifflet
   return false;
