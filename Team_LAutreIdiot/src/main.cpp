@@ -46,8 +46,8 @@ Variables globales et defines
 // 92.72 + 92.68 - 6.58 - 6.62 + 2
 
 #define PPT 3200.0
-#define PULSES_PAR_MM (3200.0 / (PI * 76.2))
-#define LARGEUR_ROBOT 184.15
+#define PULSES_PAR_MM (3200.0 / (PI * 76.37))
+#define LARGEUR_ROBOT 103 + 72 + 6.5 // (epaisseur entre roues - cell) + cell + epaisseur de roue
 #define PERIODE 50
 #define KP 0.1
 #define KI 0.2
@@ -55,6 +55,50 @@ Variables globales et defines
 #define V_MAX_MOTEUR 1
 #define V_MIN_MOTEUR 0.15
 #define V_PPS_MAX 10272
+
+#define NB_CASES  30
+#define NORD      3
+#define EST       1
+#define OUEST     -1
+#define SUD       -3
+
+// outils de navigation
+int adjacence[NB_CASES][NB_CASES] = {
+  { 0, 1, 0, 1, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 0
+  { 1, 0, 1, 0, 1, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 1
+  { 0, 1, 0, 0, 0, 1, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 2
+  { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 3
+  { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 4
+  { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 5
+  { 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 6
+  { 0, 0, 0, 0, 0, 0, 1, 0, 1, 0,  1, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 7
+  { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,  0, 1, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 8
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 1, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 9
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 10
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 1, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 11
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 0, 1, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 12
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 1, 0, 1, 0, 1, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 13
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 0, 0, 0, 1, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 14
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 1, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 15
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 1,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 16
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 17
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 1,  0, 1, 0, 0, 0, 0, 0, 0, 0, 0 }, // 18
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 1, 0,  1, 0, 1, 0, 0, 0, 0, 0, 0, 0 }, // 19
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 1,  0, 0, 0, 1, 0, 0, 0, 0, 0, 0 }, // 20
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 1, 0, 0, 0, 0, 0 }, // 21
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 1, 0, 0, 0, 0 }, // 22
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 1, 0, 0, 0 }, // 23
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 1, 0, 1, 0, 0 }, // 24
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 1, 0, 1, 0, 1, 0 }, // 25
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 1, 0, 0, 0, 1 }, // 26
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 27
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // 28
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }  // 29
+};
+
+int historique[30];
+int increment_historique = 0;
+int orientation = NORD;
 
 bool bumperArr, bumperSide;
 int vertpin = 48;
@@ -76,6 +120,17 @@ int32_t v_moteur_droit_pps = 0;
 int32_t compteur = 0;
 int sens_rotation = 0;
 
+
+int somme_rangee(int mat[])
+{
+  int somme = 0;
+  for (int i = 0; i < NB_CASES; ++i)
+  {
+    somme += mat[i];
+  }
+
+  return somme;
+}
 
 double calculer_vitesse_moteur (int32_t vitesse_pps, int32_t v_pps_max)
 {
@@ -233,26 +288,133 @@ void avancer()
   deplacement(500);
 }
 
-void reculer(){
-}
-
-void tourneDroit()
+void tourne_droit()
 {
   ENCODER_Reset(RIGHT);
   ENCODER_Reset(LEFT);
   sens_rotation = 1;
   rotation(90);
-  Serial.println("ici");
 }
 
-void tourneGauche(){
+void demi_tour()
+{
+  ENCODER_Reset(RIGHT);
+  ENCODER_Reset(LEFT);
+  sens_rotation = 1;
+  rotation(90);
+}
+
+void tourne_gauche(){
   ENCODER_Reset(RIGHT);
   ENCODER_Reset(LEFT);
   sens_rotation = -1;
   rotation(90);
-  Serial.println("ici 2");
 }
 
+void detection_cul_de_sac()
+{
+  int pos_actuelle = historique[increment_historique];
+
+  for (int i = 0; i < increment_historique; ++i)
+  {
+    if (pos_actuelle == historique[i])
+    {
+      // cul-de-sac detecte
+      adjacence[historique[i]][historique[i + 1]] = 0;
+      increment_historique = i;
+      break; // pas obligatoire vu qu'on modifie increment_historique, mais pour la clarte du code
+    }
+  }
+}
+
+void marche_arriere()
+{
+  for(int i=0;i<4;i++){
+    AX_BuzzerON();
+    delay(100);
+    AX_BuzzerOFF();
+    delay(100);  
+  }
+  delay(400);
+
+}
+
+void lecture_capteur_ir()
+{
+  vert = digitalRead(vertpin);
+  rouge = digitalRead(rougepin);
+}
+
+void maj_adjacence_capteur_ir()
+{
+  int pos_actuelle = historique[increment_historique];
+
+  lecture_capteur_ir();
+
+  // TODO mettre la matrice d'adjacence à jour des 2 bords
+  if (vert || rouge)
+  {
+    switch (orientation)
+    {
+      case NORD:
+        adjacence[pos_actuelle][pos_actuelle + 3] = 0;
+        break;
+      case OUEST:
+        adjacence[pos_actuelle][pos_actuelle - 1] = 0;
+        break;
+      case EST:
+        adjacence[pos_actuelle][pos_actuelle + 1] = 0;
+        break;
+      default:
+        // 
+        break;
+    }
+  }
+}
+
+int numero(int direction)
+{
+  switch (direction)
+  {
+    case NORD:  return 0;
+    case EST:   return 1;
+    case SUD:   return 2;
+    case OUEST: return 3;
+  }
+  return 0;
+}
+
+int trouver_prochaine_orientation()
+{
+}
+
+void tourner_prochaine_orientation(int prochaine_orientation)
+{
+  int diff = (numero(prochaine_orientation) - numero(orientation) + 4) % 4;
+
+  if (diff == 1)
+  {
+    tourne_droit();
+  }
+  else if (diff == 3)
+  {
+    tourne_gauche();
+  }
+  else if (diff == 2)
+  {
+    demi_tour();
+  }
+
+  orientation = prochaine_orientation;
+}
+
+void init_historique()
+{
+  for (int i = 0; i < 30; ++i)
+  {
+    historique[i] = -1;
+  }
+}
 
 void setup(){
   BoardInit();
@@ -260,6 +422,7 @@ void setup(){
   //initialisation
   pinMode(vertpin, INPUT);
   pinMode(rougepin, INPUT);
+  init_historique();
   delay(100);
 }
 
@@ -268,16 +431,40 @@ Fonctions de boucle infini
  -> Se fait appeler perpetuellement suite au "setup"
 */
 void loop() {
+  
   bumperArr = ROBUS_IsBumper(3);
   if (bumperArr) {
     delay(500);
 
-    avancer();
-    delay(100);
-    tourneDroit();
-    delay(100);
-    tourneGauche();
-
     bumperArr = false;
+
+    
+    int pos_actuelle = historique[increment_historique];
+    if (pos_actuelle >= 27)
+    {
+      // nous sommes a la fin. On fais le reculons
+      marche_arriere();
+    }
+    else
+    {
+      // on continue d'explorer le labyrinthe
+      maj_adjacence_capteur_ir();
+      if (adjacence[pos_actuelle][pos_actuelle + orientation] == 1)
+      {
+        avancer();
+      }
+      else
+      {
+        int prochaine_orientation = trouver_prochaine_orientation();
+        if (prochaine_orientation == 0)
+        {
+          retourner_pos_precedente();
+        }
+        else
+        {
+          tourner_prochaine_orientation(prochaine_orientation);
+        }
+      }
+    }
   }
 }

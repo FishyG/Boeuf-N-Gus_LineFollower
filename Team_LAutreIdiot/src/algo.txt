@@ -1,0 +1,54 @@
+NORD = 3
+SUD = -3
+EST = 1
+OUEST = -1
+
+
+est-ce qu'on est à la fin, si oui, on retourne
+Sinon
+lis le capteur, on met à jour la matrice d'adjacence
+on peut tu avancer? (adjacence[pos_actuelle][pos_actuelle + orientation] == 1)
+    avancer()
+    détecter_boucles()
+non (on peut pas avancer (edge, tape, mur))
+    prochaine_orientation = trouver_prochaine_position()
+    si prochaine_pos == 0
+        Retourne à la position précédente
+    sinon
+        tourner(prochaine_orientation)
+
+avancer()
+    prochaine = pos_actuelle + orientation
+    adjacence[pos_actuelle][prochaine] = 0
+    adjacence[prochaine][pos_actuelle] = 0
+    avancer 50mm
+    pos_actuelle = prochaine
+    compteur++
+    historique[compteur] = pos_actuelle
+
+trouver_prochaine_position()
+    aller chercher toutes les positions ouvertes dans la matrice d'adjacence à la ligne pos_actuelle
+    si aucune retourne 0
+    si une des valeurs est au nord retourne NORD
+    sinon, si une des valeurs est à l'est, retourne EST
+    sinon, si une des valeurs est à l'ouest, retourne OUEST
+
+détecter_boucles()
+    si on a une répétition on reset l'increment à la première apparition
+    on remet des -1
+
+numero(direction)
+    NORD    -> 0
+    EST     -> 1
+    SUD     -> 2
+    OUEST   -> 3
+
+tourner(prochaine_orientation)
+    diff = (numero(prochaine_orientation) - numero(orientation) + 4) modulo 4
+    si diff == 1
+        tourner_droite()
+    sinon, si diff == 3
+        tourner_gauche()
+    sinon (diff == 2)
+        demi_tour()
+    orientation = prochaine_orientation
