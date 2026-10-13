@@ -96,6 +96,7 @@ REGLES POUR TRAVAILLER A 4 DANS CE FICHIER
 #define RETOUR   2
 #define TERMINE  3
 #define ERREUR   4
+#define TOTO     5
 
 #define MAX_PAS  60
 
@@ -391,11 +392,11 @@ bool murDevant()
     int vert = digitalRead(PIN_VERT);
     int rouge = digitalRead(PIN_ROUGE);
     // Detection de mur
-    if (vert == HIGH && rouge == HIGH)
+    if (vert == LOW && rouge == LOW)
     {
       obstacle ++;
     }
-    if(vert == HIGH || rouge == HIGH) 
+    if(vert == LOW || rouge == LOW) 
     {
       obstacle ++;
     }
@@ -432,6 +433,8 @@ bool sifflet5kHz() {
     delay(50);
   }
   // Pas de sifflet
+  beep(5);
+  delay(500);
   return false;
 }
 
@@ -464,7 +467,7 @@ void beep(int nombre)
 // - les bordures (gauche de col 0, droite de col 2, bas de rangee 0, haut de rangee 9)
 // - les tapes fixes : rangees 1, 3, 5, 7, 9 -> ajouterMur(r, 0, DROITE) et ajouterMur(r, 1, DROITE)
 void initCarte() {
-  // TODO
+
 }
 
 // Met un mur sur le cote de la case (r, c) ET sur le cote oppose de la case voisine.
@@ -574,10 +577,10 @@ void setup() {
 
   beep(3);   // pret
 
-  if (MODE_TEST_DEPLACEMENT) {
-    delay(2000);
-    testsDeplacement();
-  }
+  // if (MODE_TEST_DEPLACEMENT) {
+  //   delay(2000);
+  //   testsDeplacement();
+  // }
 }
 
 void loop() {
@@ -586,7 +589,7 @@ void loop() {
       if (sifflet5kHz() || bumperArriere()) {
         beep(2);
         delay(500);
-        etat = ALLER;
+        etat = TOTO;
       }
       break;
 
@@ -619,6 +622,12 @@ void loop() {
 
     case TERMINE:
       arret();
+      break;
+    
+    case TOTO:
+      testsDeplacement();
+      beep(3);
+      etat = TERMINE;
       break;
   }
 
