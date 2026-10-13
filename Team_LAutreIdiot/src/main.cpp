@@ -47,8 +47,8 @@ Variables globales et defines
 
 #define PPT 3200.0
 #define PULSES_PAR_MM (3200.0 / (PI * 76.37))
-#define LARGEUR_ROBOT 103 + 72 + 6.5 // (epaisseur entre roues - cell) + cell + epaisseur de roue
-#define PERIODE 50
+#define LARGEUR_ROBOT (103 + 72 + 6.5) // (epaisseur entre roues - cell) + cell + epaisseur de roue
+#define PERIODE 25
 #define KP 0.1
 #define KI 0.2
 
@@ -56,11 +56,18 @@ Variables globales et defines
 #define V_MIN_MOTEUR 0.15
 #define V_PPS_MAX 10272
 
+#define COMPENSATION_INERTIE 120
+
 #define NB_CASES  30
 #define NORD      3
 #define EST       1
 #define OUEST     -1
 #define SUD       -3
+
+#define SEUIL_SIFFLET 550
+#define MAX_SIFFLET   714
+
+#define PIN_5KHZ A0
 
 // outils de navigation
 int adjacence[NB_CASES][NB_CASES] = {
@@ -101,6 +108,7 @@ int increment_historique = 0;
 int orientation = NORD;
 
 bool bumperArr, bumperSide;
+bool demarre;
 int vertpin = 48;
 int rougepin = 49;
 bool vert = false;
@@ -130,6 +138,14 @@ int somme_rangee(int mat[])
   }
 
   return somme;
+}
+
+bool ouvert(int pos, int dir)
+{
+  if (dir == EST && pos % 3 == 2) return false;
+  if (dir == OUEST && pos % 3 == 0) return false;
+  int cible = pos + dir;
+  return cible >= 0 && cible < NB_CASES && adjacence[pos][cible];
 }
 
 double calculer_vitesse_moteur (int32_t vitesse_pps, int32_t v_pps_max)
@@ -164,7 +180,6 @@ void blabla()
   }
   else
   {
-    Serial.println("Acceleration");
     v_moteur_gauche = 0.2 + compteur * 0.03;
     v_moteur_droit = 0.2 + compteur * 0.03;
   }
@@ -180,7 +195,6 @@ void blabla()
 
 void blablaRond()
 {
-  Serial.println("BlablaRond");
   int32_t pulse_moteur_gauche = ENCODER_ReadReset(LEFT);
   int32_t pulse_moteur_droit = ENCODER_ReadReset(RIGHT);
 
@@ -201,7 +215,6 @@ void blablaRond()
   }
   else
   {
-    Serial.println("Tourner acceleration");
     v_moteur_gauche = 0.2 + compteur * 0.03;
     v_moteur_droit = 0.2 + compteur * 0.03;
   }
@@ -211,13 +224,16 @@ void blablaRond()
 
   ++compteur;
 
-  Serial.print(deplacement_total_gauche);
-  Serial.print("\t");
-  Serial.print(deplacement_total_droit);
-  Serial.print("\t");
-
   MOTOR_SetSpeed(LEFT, sens_rotation * v_moteur_gauche);
   MOTOR_SetSpeed(RIGHT, -1 * sens_rotation * v_moteur_droit);
+
+  Serial.print(compteur); Serial.print("\t");
+  Serial.print(pulse_moteur_gauche); Serial.print("\t");
+  Serial.print(pulse_moteur_droit); Serial.print("\t");
+  Serial.print(deplacement_total_gauche); Serial.print("\t");
+  Serial.print(deplacement_total_droit); Serial.print("\t");
+  Serial.print(v_moteur_gauche); Serial.print("\t");
+  Serial.println(v_moteur_droit);
 }
 
 void arret(){
@@ -258,27 +274,38 @@ void deplacement(int distance)
 
 void rotation(int angle)
 {
-  deplacement_a_faire = LARGEUR_ROBOT * PI * angle / 360 * PULSES_PAR_MM;
+  deplacement_a_faire = LARGEUR_ROBOT * PI * angle / 360 * PULSES_PAR_MM - COMPENSATION_INERTIE;
   deplacement_total_droit = 0;
   deplacement_total_gauche = 0;
   integrale_gauche = 0;
   integrale_droite = 0;
   compteur = 0;
 
-  Serial.println("Distance en pulse");
-  Serial.println(deplacement_a_faire);
+  Serial.print("--- Rotation "); Serial.print(angle);
+  Serial.print(" deg | cible = "); Serial.println(deplacement_a_faire);
 
   SOFT_TIMER_SetCallback(0, blablaRond);
   SOFT_TIMER_SetDelay(0, PERIODE);
-
   SOFT_TIMER_Enable(0);
   while (deplacement_total_gauche < deplacement_a_faire || deplacement_total_droit < deplacement_a_faire)
   {
     SOFT_TIMER_Update();
-  };
-
+  }
   SOFT_TIMER_Disable(0);
+
+  int32_t g = deplacement_total_gauche;
+  int32_t d = deplacement_total_droit;
   arret();
+
+  delay(300); // laisse le robot s'immobiliser
+  int32_t glisse_g = abs(ENCODER_Read(LEFT));
+  int32_t glisse_d = abs(ENCODER_Read(RIGHT));
+
+  Serial.print("Fin   G="); Serial.print(g); Serial.print(" D="); Serial.println(d);
+  Serial.print("Inertie G="); Serial.print(glisse_g); Serial.print(" D="); Serial.println(glisse_d);
+  Serial.print("Total G="); Serial.print(g + glisse_g); Serial.print(" D="); Serial.println(d + glisse_d);
+  Serial.print("Erreur G="); Serial.print(g + glisse_g - deplacement_a_faire);
+  Serial.print(" D="); Serial.println(d + glisse_d - deplacement_a_faire);
 }
 
 void avancer()
@@ -286,6 +313,9 @@ void avancer()
   ENCODER_Reset(RIGHT);
   ENCODER_Reset(LEFT);
   deplacement(500);
+  ++increment_historique;
+  historique[increment_historique] = historique[increment_historique - 1] + orientation;
+  adjacence[historique[increment_historique]][historique[increment_historique - 1]] = 0;
 }
 
 void tourne_droit()
@@ -301,7 +331,7 @@ void demi_tour()
   ENCODER_Reset(RIGHT);
   ENCODER_Reset(LEFT);
   sens_rotation = 1;
-  rotation(90);
+  rotation(182);
 }
 
 void tourne_gauche(){
@@ -341,8 +371,8 @@ void marche_arriere()
 
 void lecture_capteur_ir()
 {
-  vert = digitalRead(vertpin);
-  rouge = digitalRead(rougepin);
+  vert = !digitalRead(vertpin);
+  rouge = !digitalRead(rougepin);
 }
 
 void maj_adjacence_capteur_ir()
@@ -365,6 +395,9 @@ void maj_adjacence_capteur_ir()
       case EST:
         adjacence[pos_actuelle][pos_actuelle + 1] = 0;
         break;
+      case SUD:
+        adjacence[pos_actuelle][pos_actuelle - 3] = 0;
+        break;
       default:
         // 
         break;
@@ -386,6 +419,30 @@ int numero(int direction)
 
 int trouver_prochaine_orientation()
 {
+  int pos_actuelle = historique[increment_historique];
+
+  int somme_rangee_nb = somme_rangee(adjacence[pos_actuelle]);
+  if (somme_rangee_nb == 0)
+  {
+    return 0;
+  }
+  else if (adjacence[pos_actuelle][pos_actuelle + NORD])
+  {
+    return NORD;
+  }
+  else if (adjacence[pos_actuelle][pos_actuelle + EST])
+  {
+    return EST;
+  }
+  else if (adjacence[pos_actuelle][pos_actuelle + OUEST])
+  {
+    return OUEST;
+  }
+  else if (adjacence[pos_actuelle][pos_actuelle + SUD])
+  {
+    return SUD;
+  }
+  return 0;
 }
 
 void tourner_prochaine_orientation(int prochaine_orientation)
@@ -408,6 +465,30 @@ void tourner_prochaine_orientation(int prochaine_orientation)
   orientation = prochaine_orientation;
 }
 
+void retourner_pos_precedente()
+{
+  if (increment_historique == 0)
+  {
+    // Aucune case precedente : on ne peut pas reculer
+    return;
+  }
+
+  int pos_actuelle = historique[increment_historique];
+  int pos_precedente = historique[increment_historique - 1];
+
+  adjacence[pos_precedente][pos_actuelle] = 0;
+
+  tourner_prochaine_orientation(pos_precedente - pos_actuelle);
+
+  ENCODER_Reset(RIGHT);
+  ENCODER_Reset(LEFT);
+  deplacement(500);
+
+  // Retirer la case actuelle de l'historique
+  historique[increment_historique] = -1;
+  --increment_historique;
+}
+
 void init_historique()
 {
   for (int i = 0; i < 30; ++i)
@@ -416,6 +497,32 @@ void init_historique()
   }
 }
 
+// Fonction de detection de sifflet 5kHz : retourne vrai ou faux
+bool sifflet5kHz() {
+  // Son qui doit etre detecte au moins 18 fois sur 20
+  int son = 0;
+  // 20 iterations
+  for (int i = 0; i < 20; i++)
+  {
+    // Lecture du sifflet PIN A0
+    int sifflet = analogRead(PIN_5KHZ);
+    // s'assurer qu'il s'agit du sifflet
+    if (sifflet >= SEUIL_SIFFLET && sifflet <= MAX_SIFFLET)
+    {
+      son ++; 
+    }
+    // Si on a 18 sons, il y a un sifflet
+    if (son >= 18)
+    {
+      return true;
+    }
+    delay(50);
+  }
+  // Pas de sifflet
+  return false;
+}
+
+
 void setup(){
   BoardInit();
   
@@ -423,6 +530,10 @@ void setup(){
   pinMode(vertpin, INPUT);
   pinMode(rougepin, INPUT);
   init_historique();
+  increment_historique = 0;
+  historique[increment_historique] = 1;
+  orientation = NORD;
+  demarre = false;
   delay(100);
 }
 
@@ -431,15 +542,33 @@ Fonctions de boucle infini
  -> Se fait appeler perpetuellement suite au "setup"
 */
 void loop() {
-  
+  /*
   bumperArr = ROBUS_IsBumper(3);
-  if (bumperArr) {
+
+  if (bumperArr || demarre) {
     delay(500);
+    avancer();
+    
+    delay(5000);
+    demi_tour();
+    
+    //delay(500);
+    avancer();
 
-    bumperArr = false;
+    //delay(500);
+    demi_tour();
+  }
 
+  */
+  bumperArr = ROBUS_IsBumper(3);
+
+  if (bumperArr || demarre) {
+    delay(500);
+    demarre = true;
+    Serial.println("Debut");
     
     int pos_actuelle = historique[increment_historique];
+    Serial.println(pos_actuelle);
     if (pos_actuelle >= 27)
     {
       // nous sommes a la fin. On fais le reculons
@@ -449,7 +578,7 @@ void loop() {
     {
       // on continue d'explorer le labyrinthe
       maj_adjacence_capteur_ir();
-      if (adjacence[pos_actuelle][pos_actuelle + orientation] == 1)
+      if (ouvert(pos_actuelle, orientation) == 1)
       {
         avancer();
       }
