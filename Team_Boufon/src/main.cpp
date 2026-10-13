@@ -69,6 +69,7 @@ REGLES POUR TRAVAILLER A 4 DANS CE FICHIER
 #define PULSES_PAR_MM   (PPT / (PI * DIAMETRE_ROUE))
 #define ENTRAXE         177.8    
 #define TAILLE_CASE     500.0
+#define DISTANCE_AVANCE 500.0    // mm demandes aux roues pour 1 case : augmenter si le robot n'avance pas assez
 
 // ---- Grille : 10 rangees x 3 colonnes ----
 //   rangee 9  [Fin][Fin][Fin]
@@ -100,6 +101,11 @@ REGLES POUR TRAVAILLER A 4 DANS CE FICHIER
 #define TOTO     5
 
 #define MAX_PAS  60
+
+// ---- Navigation (SECTION 4) ----
+#define SCAN_COMPLET      0   // 1 = scanner tous les cotes inconnus de chaque case
+                              // 0 = verifier seulement le cote ou on veut aller (moins de virages)
+#define DEBUG_NAVIGATION  1   // 1 = affiche chaque decision et la carte dans le moniteur serie
 
 // ---- Variables globales ----
 int  robotR    = DEPART_R;   
@@ -158,6 +164,8 @@ void afficherCarte();
 // SECTION 4 : navigation
 void scannerCellule();
 bool naviguerVers(bool versFin, int mode);
+bool estArrive(bool versFin);
+bool verifierCote(int cote);
 
 
 /* ============================================================================
@@ -222,7 +230,6 @@ void mouvement(long cible, int sensG, int sensD, float vMax) {
       vMinCmd = 0.0;  
       vMaxCmd = 1.0;
     } else {
-      
       if (!ligneDroite) break;   
       if (!maintien) {
         maintien = true;
@@ -257,15 +264,12 @@ void mouvement(long cible, int sensG, int sensD, float vMax) {
 
     while (millis() - debutPeriode < PERIODE) {}   
   }
-
-  
   arret();
   delay(PAUSE_MOUVEMENT);   
   long finG = ENCODER_Read(LEFT);
   long finD = ENCODER_Read(RIGHT);
 
   if (ligneDroite) {
-    
     resteG = constrain(sensG * cibleG - finG, -300, 300);
     resteD = constrain(sensD * cibleD - finD, -300, 300);
   } else {
@@ -290,7 +294,7 @@ void mouvement(long cible, int sensG, int sensD, float vMax) {
 }
 
 void avancerCase() {
-  mouvement(mmEnPulses(TAILLE_CASE), +1, +1, VITESSE);
+  mouvement(mmEnPulses(DISTANCE_AVANCE), +1, +1, VITESSE);
 }
 
 void tourner(int quarts) {
@@ -435,7 +439,7 @@ bool sifflet5kHz() {
     delay(50);
   }
   // Pas de sifflet
-  beep(5);
+  //beep(4);
   delay(500);
   return false;
 }
@@ -608,14 +612,14 @@ void calculerDistances(bool versFin, int mode) {
 // En cas d'egalite, preferer le cote "direction" (tout droit = moins de virages).
 // Retourne -1 si aucun voisin n'a une distance < INFINI.
 int meilleurCote(int r, int c, int mode) {
-  // Ordre d'essai : tout droit, droite, gauche, derriere.
+  // Ordre d'essai : tout droit, gauche, droite, derriere.
   // Avec "<" (et non "<="), le premier cote essaye gagne les egalites :
   // on prefere donc le chemin avec le moins de virages.
   int ordre[4] = {
     direction,
-    (direction + 1) % 4, 
-    (direction + 3) % 4,   
-    (direction + 2) % 4    
+    (direction + 3) % 4,   // gauche
+    (direction + 1) % 4,   // droite
+    (direction + 2) % 4    // derriere
   };
 
   int meilleur = -1;
@@ -705,26 +709,98 @@ void afficherCarte() {
    SECTION 4 : NAVIGATION
    ============================================================================ */
 
-// Scanne les cotes INCONNUS de la case actuelle (devant en premier, puis gauche,
-// droite, derriere). Pour chaque cote : faireFace(cote), puis
-// murDevant() ? ajouterMur(...) : marquerLibre(...).
-void scannerCellule() {
-  // TODO
+// VRAI si le robot est sur une case cible.
+//   versFin = VRAI : n'importe quelle case de la rangee Fin
+//   versFin = FAUX : la case Depart
+bool estArrive(bool versFin) {
+  if (versFin) return robotR == RANGEE_FIN;
+  return robotR == DEPART_R && robotC == DEPART_C;
 }
 
-// Deplace le robot jusqu'a la cible. Retourne VRAI si arrive, FAUX si echec.
-// Boucle (max MAX_PAS fois) :
-//   - si arrive (versFin : robotR == RANGEE_FIN, sinon case Depart) -> VRAI
-//   - si bumperArriere() -> arret(), FAUX
-//   - si mode == NOUVEAU : scannerCellule()
-//   - calculerDistances(versFin, mode)
-//   - cote = meilleurCote(robotR, robotC, mode) ; si -1 -> FAUX
-//     (retour : si -1 en CONNU_SEULEMENT, passer en NOUVEAU et recommencer)
-//   - faireFace(cote)
-//   - si murDevant() -> ajouterMur(...), recommencer (securite)
-//   - avancerCase(), robotR = voisinR(...), robotC = voisinC(...)
+// Tourne vers "cote" et regarde s'il y a un panneau. Met la carte a jour.
+// Retourne VRAI si le passage est libre.
+bool verifierCote(int cote) {
+  faireFace(cote);
+  if (murDevant()) {
+    ajouterMur(robotR, robotC, cote);
+    return false;
+  }
+  marquerLibre(robotR, robotC, cote);
+  return true;
+}
+
+// Scanne tous les cotes INCONNUS de la case actuelle : devant d'abord (pas de
+// virage), puis en tournant toujours dans le meme sens (gauche, derriere, droite).
+// Les cotes deja connus (tapes, bordures, deja vus) ne sont pas re-scannes.
+void scannerCellule() {
+  for (int i = 0; i < 4; i++) {
+    int cote = (direction + 4 - i) % 4;   // devant, gauche, derriere, droite
+    if (!connu[robotR][robotC][cote]) {
+      verifierCote(cote);
+    }
+  }
+}
+
+// Deplace le robot case par case jusqu'a la cible.
+// Retourne VRAI si arrive, FAUX si echec (bloque, bumper, trop de pas).
+//
+// A chaque pas :
+//   1. calculer les distances jusqu'a la cible (BFS)
+//   2. choisir le meilleur cote (tout droit en priorite)
+//   3. si ce cote n'a jamais ete verifie : tourner vers lui et regarder.
+//      Panneau -> l'ajouter a la carte et recommencer au 1.
+//   4. avancer d'une case
+//
+// mode NOUVEAU (aller) : un cote inconnu est suppose libre, on le verifie en y allant.
+// mode CONNU_SEULEMENT (retour) : seulement les passages deja verifies, donc
+//   aucune surprise. Si aucun chemin connu, on repasse en NOUVEAU.
 bool naviguerVers(bool versFin, int mode) {
-  // TODO
+  for (int pas = 0; pas < MAX_PAS; pas++) {
+    if (estArrive(versFin)) return true;
+
+    if (bumperArriere()) {
+      arret();
+      return false;
+    }
+
+    if (mode == NOUVEAU && SCAN_COMPLET) {
+      scannerCellule();
+    }
+
+    
+    calculerDistances(versFin, mode);
+    int cote = meilleurCote(robotR, robotC, mode);
+
+    if (cote == -1) {
+      if (mode == CONNU_SEULEMENT) {
+        // Pas de chemin connu : explorer comme a l'aller
+        if (DEBUG_NAVIGATION) Serial.println("Aucun chemin connu -> mode NOUVEAU");
+        mode = NOUVEAU;
+        continue;
+      }
+      if (DEBUG_NAVIGATION) Serial.println("ERREUR : aucun chemin possible");
+      return false;
+    }
+
+    // Verifier le cote s'il est inconnu
+    if (!connu[robotR][robotC][cote]) {
+      if (!verifierCote(cote)) {
+        if (DEBUG_NAVIGATION) Serial.println("Panneau detecte -> nouveau chemin");
+        continue;
+      }
+    } else {
+      faireFace(cote);
+    }
+
+    // Avancer
+    avancerCase();
+    robotR = voisinR(robotR, cote);
+    robotC = voisinC(robotC, cote);
+
+    if (DEBUG_NAVIGATION) afficherCarte();
+  }
+
+  if (DEBUG_NAVIGATION) Serial.println("ERREUR : trop de pas (MAX_PAS)");
   return false;
 }
 
@@ -760,7 +836,7 @@ void loop() {
       if (sifflet5kHz() || bumperArriere()) {
         beep(2);
         delay(500);
-        etat = TOTO;
+        etat = ALLER;
       }
       break;
 
