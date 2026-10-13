@@ -23,6 +23,7 @@ REGLES POUR TRAVAILLER A 4 DANS CE FICHIER
 #include <LibRobus.h>
 #include <stdio.h>
 
+
 /* ============================================================================
    SECTION 0 : DEFINES ET VARIABLES GLOBALES                         
    ============================================================================ */
@@ -101,10 +102,10 @@ REGLES POUR TRAVAILLER A 4 DANS CE FICHIER
 #define MAX_PAS  60
 
 // ---- Variables globales ----
-int robotR    = DEPART_R;   
-int robotC    = DEPART_C;   
-int direction = HAUT;       
-int etat      = ATTENTE;
+int  robotR    = DEPART_R;   
+int  robotC    = DEPART_C;   
+int  direction = HAUT;       
+int  etat      = ATTENTE;
 
 bool mur[NB_RANGEES][NB_COLONNES][4];    
 bool connu[NB_RANGEES][NB_COLONNES][4];  
@@ -121,7 +122,6 @@ long erreurCap = 0;
    PROTOTYPES
    ============================================================================ */
 
-/*
 // SECTION 1 : deplacements
 void arret();
 void avancerCase();
@@ -158,7 +158,7 @@ void afficherCarte();
 // SECTION 4 : navigation
 void scannerCellule();
 bool naviguerVers(bool versFin, int mode);
-*/
+
 
 /* ============================================================================
    SECTION 1 : DEPLACEMENTS
@@ -465,71 +465,39 @@ void beep(int nombre)
    SECTION 3 : CARTE DES MURS + BFS 
    ============================================================================ */
 
-// --- variables utilisé dans la section ---
-
-// tableau - mur[RANGEE][COLONNE][COTE]
-//
-
-
-
-void initCarte(bool mur[NB_RANGEES][NB_COLONNES], bool connu[NB_RANGEES][NB_COLONNES]) { // Initialiser les tableaux
-  // TODO
-  int i = 0;
-  int j = 0;
-
-  while (i < NB_RANGEES) {
-    j = 0;
-    while (j < NB_COLONNES) {
-      mur[i][j] = false;
-      connu[i][j] = false;
-      j = j + 1;
-    }
-    i = i + 1;
-  }
-}
-
-// fonction temporire d'affichage de test - a effacer après
-
-void convert(bool m1[NB_RANGEES][NB_COLONNES], int m2[NB_RANGEES][NB_COLONNES]) {
-  int i = 0;
-  int j = 0;
-
-  while (i < NB_RANGEES) {
-    j = 0;
-    while (j < NB_COLONNES) {
-      if (m1[i][j] == true) {
-        m2[i][j] = 1;
-      } else {
-        m2[i][j] = 0;
+// Remet mur[][][] et connu[][][] a FAUX, puis ajoute :
+// - les bordures (gauche de col 0, droite de col 2, bas de rangee 0, haut de rangee 9)
+// - les tapes fixes : rangees 1, 3, 5, 7, 9 -> ajouterMur(r, 0, DROITE) et ajouterMur(r, 1, DROITE)
+void initCarte(){
+  for (int r =0; r < NB_RANGEES; r++) {
+    for (int c = 0; c < NB_COLONNES; c++) {
+      for (int cote = 0; cote < 4; cote++) {
+        mur[r][c][cote]   = false;
+        connu[r][c][cote] = false;
       }
-      j = j + 1;
     }
-    i = i + 1;
+  }
+
+  // Bordures gauche et droite
+  for (int r = 0; r < NB_RANGEES; r++) {
+    ajouterMur(r, 0, GAUCHE);
+    ajouterMur(r, NB_COLONNES - 1, DROITE);
+  }
+
+  //Bordure bas et haut
+  for (int c = 0; c < NB_COLONNES; c++) {
+    ajouterMur(0, c, BAS);
+    ajouterMur(NB_RANGEES - 1, c, HAUT);
+  }
+
+
+  //Tapes fixe
+  for (int r = 1; r < NB_RANGEES; r += 2) {
+    ajouterMur(r, 0, DROITE);
+    ajouterMur(r, 1, DROITE);
   }
 }
 
-
-// Affiche la carte et dist[][] dans le moniteur serie (debug).
-void afficherCarte(int m[NB_RANGEES][NB_COLONNES]) {
-
-  int i = 0;
-  int j = 0;
-
-  while (i < NB_RANGEES) {
-    j = 0;
-    while (j < NB_COLONNES) {
-      printf("%d\n ", m[i][j]);
-      j = j + 1;
-    }
-    i = i + 1;
-  }
-}
-
-
-
-
-// Met un mur sur le cote de la case (r, c) ET sur le cote oppose de la case voisine.
-// Marque aussi les 2 cotes comme connus.
 void ajouterMur(int r, int c, int cote) {
   mur[r][c][cote]   = true;
   connu[r][c][cote] = true;
@@ -640,11 +608,97 @@ void calculerDistances(bool versFin, int mode) {
 // En cas d'egalite, preferer le cote "direction" (tout droit = moins de virages).
 // Retourne -1 si aucun voisin n'a une distance < INFINI.
 int meilleurCote(int r, int c, int mode) {
-  // TODO
-  return -1;
+  // Ordre d'essai : tout droit, droite, gauche, derriere.
+  // Avec "<" (et non "<="), le premier cote essaye gagne les egalites :
+  // on prefere donc le chemin avec le moins de virages.
+  int ordre[4] = {
+    direction,
+    (direction + 1) % 4, 
+    (direction + 3) % 4,   
+    (direction + 2) % 4    
+  };
+
+  int meilleur = -1;
+  int meilleureDist = INFINI;
+
+  for (int i = 0; i < 4; i++) {
+    int cote = ordre[i];
+    if (!passageOuvert(r, c, cote, mode)) continue;
+
+    int d = dist[voisinR(r, cote)][voisinC(c, cote)];
+    if (d < meilleureDist) {
+      meilleureDist = d;
+      meilleur = cote;
+    }
+  }
+  return meilleur;
 }
 
+// Affiche la carte et dist[][] dans le moniteur serie (debug).
+// Legende :
+//   ---- ou |  = mur (panneau, tape ou bordure)
+//   . .  ou :  = cote pas encore verifie
+//   vide       = passage verifie libre
+//   nombre     = distance jusqu'a la cible (- = inatteignable)
+//   R^ R> Rv R< = robot et la direction qu'il regarde
+void afficherCarte() {
+  const char fleche[4] = {'^', '>', 'v', '<'};   // HAUT, DROITE, BAS, GAUCHE
 
+  Serial.println();
+  for (int r = NB_RANGEES - 1; r >= 0; r--) {
+    // Ligne du haut des cases
+    Serial.print("    ");
+    for (int c = 0; c < NB_COLONNES; c++) {
+      Serial.print("+");
+      if (mur[r][c][HAUT])        Serial.print("----");
+      else if (!connu[r][c][HAUT]) Serial.print(" . .");
+      else                         Serial.print("    ");
+    }
+    Serial.println("+");
+
+    // Ligne des cases : mur de gauche + contenu
+    Serial.print("r");
+    Serial.print(r);
+    Serial.print("  ");
+    for (int c = 0; c < NB_COLONNES; c++) {
+      if (mur[r][c][GAUCHE])        Serial.print("|");
+      else if (!connu[r][c][GAUCHE]) Serial.print(":");
+      else                           Serial.print(" ");
+
+      if (r == robotR && c == robotC) {
+        Serial.print(" R");
+        Serial.print(fleche[direction]);
+        Serial.print(" ");
+      } else if (dist[r][c] >= INFINI) {
+        Serial.print("  - ");
+      } else {
+        if (dist[r][c] < 10) Serial.print(" ");
+        if (dist[r][c] < 100) Serial.print(" ");
+        Serial.print(dist[r][c]);
+        Serial.print(" ");
+      }
+    }
+    // Mur de droite de la derniere colonne
+    if (mur[r][NB_COLONNES - 1][DROITE])        Serial.println("|");
+    else if (!connu[r][NB_COLONNES - 1][DROITE]) Serial.println(":");
+    else                                         Serial.println(" ");
+  }
+
+  // Ligne du bas de la rangee 0
+  Serial.print("    ");
+  for (int c = 0; c < NB_COLONNES; c++) {
+    Serial.print("+");
+    Serial.print(mur[0][c][BAS] ? "----" : "    ");
+  }
+  Serial.println("+");
+
+  Serial.print("Robot : rangee ");
+  Serial.print(robotR);
+  Serial.print(", colonne ");
+  Serial.print(robotC);
+  Serial.print(", regarde ");
+  Serial.println(fleche[direction]);
+}
 
 
 /* ============================================================================
@@ -679,7 +733,7 @@ bool naviguerVers(bool versFin, int mode) {
    SECTION 5 : SETUP ET LOOP
    ============================================================================ */
 
-/*void setup() {
+void setup() {
   BoardInit();
   Serial.begin(9600);
 
@@ -749,24 +803,4 @@ void loop() {
   }
 
   delay(10); // Delais pour decharger le CPU
-}
-
-*/
-
-// main temporaire pour test de la carte
-
-int main() {
-
-  initCarte(mur, connu);
-
-  int m_test1[NB_RANGEES][NB_COLONNES] = {0};
-  int m_test2[NB_RANGEES][NB_COLONNES] = {0};
-
-  convert(mur, m_test1);
-  convert(connu, m_test2);
-
-  afficher(m_test1);
-  afficher(m_test2);
-
-  return 0;
 }
