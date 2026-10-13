@@ -741,6 +741,74 @@ void scannerCellule() {
   }
 }
 
+
+
+
+
+
+/*void scannerCellule() 
+{
+  int PositionX = 1 ;
+  int PositionY = 0 ;
+ (fonction de Thomas)
+
+  if (murDevant) 
+  {
+     if (connu[PositionX + 1][PositionY][1] = 1)
+      {
+        DROITE;
+        if (murDevant)
+        {
+          connu[PositionX + 1][PositionY][1] = 0 ;
+        }
+        else 
+        {
+          avancerCase;
+          PositionX += 1;
+        }
+        GAUCHE;
+      }
+    else
+    {
+      if (connu[PositionX - 1][PositionY][1] == 1)
+      {
+        GAUCHE;
+        if (murDevant)
+        {
+          connu[PositionX - 1][PositionY][1] = 0 ;
+        }
+        else 
+        {
+        avancerCase;
+        PositionX -= 1;
+        }
+        DROITE;
+      }
+      else 
+      {
+        GAUCHE;
+        GAUCHE;
+        avancerCase;
+      }
+    }
+      
+  }
+  else 
+  {   
+    avancerCase;
+    PositionY += 1;
+  }
+  if ( PositionY = NB_RANGEES -1 )
+  {
+    etat = TERMINE;
+  }
+} */
+
+
+
+
+
+
 // Deplace le robot case par case jusqu'a la cible.
 // Retourne VRAI si arrive, FAUX si echec (bloque, bumper, trop de pas).
 //
