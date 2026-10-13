@@ -442,8 +442,16 @@ bool bumperArriere() {
 }
 
 // Fait "nombre" bips courts (AX_BuzzerON / AX_BuzzerOFF, 100 ms chacun).
-void beep(int nombre) {
-  // TODO
+void beep(int nombre)
+{
+  // On active le buzzer le nombre de fois demandée
+  for ( int i = 0; i < nombre; i++ )
+  {
+    AX_BuzzerON();
+    delay(100);
+    AX_BuzzerOFF();
+    delay(100);
+  }
 }
 
 
