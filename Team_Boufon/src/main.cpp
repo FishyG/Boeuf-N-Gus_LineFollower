@@ -436,9 +436,10 @@ bool sifflet5kHz() {
 }
 
 // VRAI si le bumper arriere est appuye (depart de secours / arret d'urgence).
-bool bumperArriere() {
-  // TODO: return ROBUS_IsBumper(REAR);
-  return false;
+bool bumperArriere() 
+{
+  // La fonction le fait... je ne sais pas si c'est nécessaire de faire une fonction d'une fonction
+  return (ROBUS_IsBumper(REAR));
 }
 
 // Fait "nombre" bips courts (AX_BuzzerON / AX_BuzzerOFF, 100 ms chacun).
