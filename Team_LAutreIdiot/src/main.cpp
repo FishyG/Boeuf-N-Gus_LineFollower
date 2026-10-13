@@ -560,9 +560,9 @@ void loop() {
   }
 
   */
-  bumperArr = ROBUS_IsBumper(3);
+  //bumperArr = ROBUS_IsBumper(3);
 
-  if (bumperArr || demarre) {
+  if (sifflet5kHz() || demarre) {
     delay(500);
     demarre = true;
     Serial.println("Debut");
