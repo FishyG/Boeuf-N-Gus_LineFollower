@@ -39,20 +39,20 @@ REGLES POUR TRAVAILLER A 4 DANS CE FICHIER
 
 #define PERIODE          10       
 #define V_PPS_MAX        10272.0  
-#define ACCEL            1.5      
+#define ACCEL            2.0     
 #define KP               0.003    
 #define KS               0.003    
-#define PAUSE_MOUVEMENT  200     
+#define PAUSE_MOUVEMENT  100  
 
 
-#define VITESSE          0.30     
+#define VITESSE          0.45   
 #define V_FIN            0.08     
 #define V_MAINTIEN       0.15     
-#define TEMPS_MAINTIEN   300      
+#define TEMPS_MAINTIEN   150      
 #define RATIO_DROITE     1.0      
 
 
-#define VITESSE_TOURNE   0.20     
+#define VITESSE_TOURNE   0.25     
 #define V_FIN_TOURNE     0.15     
 #define GLISSE_VIRAGE    62       
 #define FACTEUR_TOURNE_D 1.08     
@@ -411,7 +411,7 @@ bool murDevant()
     {
       return true;
     }
-    delay(50);
+    delay(15);
   }
   // Pas de mur
   return false;
