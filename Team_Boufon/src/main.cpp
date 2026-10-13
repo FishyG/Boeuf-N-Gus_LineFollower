@@ -46,7 +46,7 @@ REGLES POUR TRAVAILLER A 4 DANS CE FICHIER
 
 
 #define VITESSE          0.45   
-#define V_FIN            0.08     
+#define V_FIN            0.10     
 #define V_MAINTIEN       0.15     
 #define TEMPS_MAINTIEN   150      
 #define RATIO_DROITE     1.0      
@@ -55,8 +55,9 @@ REGLES POUR TRAVAILLER A 4 DANS CE FICHIER
 #define VITESSE_TOURNE   0.25     
 #define V_FIN_TOURNE     0.15     
 #define GLISSE_VIRAGE    62       
-#define FACTEUR_TOURNE_D 1.08     
-#define FACTEUR_TOURNE_G 1.08     
+#define FACTEUR_TOURNE_D 1.05     
+#define FACTEUR_TOURNE_G 1.05
+     
 
 
 #define DEBUG_DEPLACEMENT      1     
@@ -68,8 +69,8 @@ REGLES POUR TRAVAILLER A 4 DANS CE FICHIER
 #define DIAMETRE_ROUE   76.2                      
 #define PULSES_PAR_MM   (PPT / (PI * DIAMETRE_ROUE))
 #define ENTRAXE         177.8    
-#define TAILLE_CASE     500.0
-#define DISTANCE_AVANCE 500.0    // mm demandes aux roues pour 1 case : augmenter si le robot n'avance pas assez
+#define TAILLE_CASE     510.0
+#define DISTANCE_AVANCE 510.0    // mm demandes aux roues pour 1 case : augmenter si le robot n'avance pas assez
 
 // ---- Grille : 10 rangees x 3 colonnes ----
 //   rangee 9  [Fin][Fin][Fin]
