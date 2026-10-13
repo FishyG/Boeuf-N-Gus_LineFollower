@@ -33,7 +33,7 @@ REGLES POUR TRAVAILLER A 4 DANS CE FICHIER
 #define PIN_5KHZ      A0   
 #define PIN_AMBIANT   A1    
 // ---- Seuils ---- base sur 3,2V min : 3,2 / 5 * 1024 = 655, max : 3,49 / 5 * 1024 = 714
-#define SEUIL_SIFFLET 614
+#define SEUIL_SIFFLET 550
 #define MAX_SIFFLET   714
 
 #define PERIODE          10       
@@ -59,7 +59,7 @@ REGLES POUR TRAVAILLER A 4 DANS CE FICHIER
 
 
 #define DEBUG_DEPLACEMENT      1     
-#define MODE_TEST_DEPLACEMENT  1      
+#define MODE_TEST_DEPLACEMENT  0      
 #define PAUSE_ENTRE_TESTS      5000
 
 
@@ -404,7 +404,7 @@ bool murDevant()
     {
       return true;
     }
-    delay(3);
+    delay(50);
   }
   // Pas de mur
   return false;
@@ -429,7 +429,7 @@ bool sifflet5kHz() {
     {
       return true;
     }
-    delay(2);
+    delay(50);
   }
   // Pas de sifflet
   return false;
