@@ -20,10 +20,8 @@ REGLES POUR TRAVAILLER A 4 DANS CE FICHIER
   SECTION 5 : setup() + loop()
 **************************************************************************** */
 
-#include <LibRobus.h> 
-
-
-#include <stdio.h> // temporaire pour les tests
+#include <LibRobus.h>
+#include <stdio.h>
 
 /* ============================================================================
    SECTION 0 : DEFINES ET VARIABLES GLOBALES                         
@@ -152,6 +150,7 @@ bool dansGrille(int r, int c);
 int  voisinR(int r, int cote);
 int  voisinC(int c, int cote);
 int  coteOppose(int cote);
+bool passageOuvert(int r, int c, int cote, int mode);
 void calculerDistances(bool versFin, int mode);
 int  meilleurCote(int r, int c, int mode);
 void afficherCarte();
@@ -532,38 +531,55 @@ void afficherCarte(int m[NB_RANGEES][NB_COLONNES]) {
 // Met un mur sur le cote de la case (r, c) ET sur le cote oppose de la case voisine.
 // Marque aussi les 2 cotes comme connus.
 void ajouterMur(int r, int c, int cote) {
-  // TODO
-}
+  mur[r][c][cote]   = true;
+  connu[r][c][cote] = true;
 
+  int vr = voisinR(r, cote);
+  int vc = voisinC(c, cote);
+  if (dansGrille(vr, vc)) {
+    mur[vr][vc][coteOppose(cote)]   = true;
+    connu[vr][vc][coteOppose(cote)] = true;
+  }
+}
 // Marque le cote de la case (r, c) ET le cote oppose du voisin comme connus (pas de mur).
 void marquerLibre(int r, int c, int cote) {
-  // TODO
-}
+  connu[r][c][cote] = true;
 
-// VRAI si (r, c) est dans la grille.
+  // Le meme cote vu de la case voisine
+  int vr = voisinR(r, cote);
+  int vc = voisinC(c, cote);
+  if (dansGrille(vr, vc)) {
+    connu[vr][vc][coteOppose(cote)] = true;
+  }
+}
 bool dansGrille(int r, int c) {
-  // TODO
-  return false;
+  return r >= 0 && r < NB_RANGEES && c >= 0 && c < NB_COLONNES;
 }
-
 // Rangee de la case voisine du cote donne (HAUT = r + 1, BAS = r - 1, sinon r).
 int voisinR(int r, int cote) {
-  // TODO
+  if (cote == HAUT) return r + 1;
+  if (cote == BAS)  return r - 1;
   return r;
 }
-
 // Colonne de la case voisine du cote donne (DROITE = c + 1, GAUCHE = c - 1, sinon c).
 int voisinC(int c, int cote) {
-  // TODO
+  if (cote == DROITE) return c + 1;
+  if (cote == GAUCHE) return c - 1;
   return c;
 }
-
 // HAUT <-> BAS, DROITE <-> GAUCHE : (cote + 2) % 4
 int coteOppose(int cote) {
-  // TODO
-  return cote;
+  return (cote + 2) % 4;
 }
-
+// VRAI si le robot peut passer de la case (r, c) vers la case voisine du cote donne.
+//   mode NOUVEAU         : pas de mur connu (un cote inconnu est considere libre)
+//   mode CONNU_SEULEMENT : pas de mur ET le cote a deja ete verifie
+bool passageOuvert(int r, int c, int cote, int mode) {
+  if (!dansGrille(voisinR(r, cote), voisinC(c, cote))) return false;
+  if (mur[r][c][cote]) return false;
+  if (mode == CONNU_SEULEMENT && !connu[r][c][cote]) return false;
+  return true;
+}
 // Remplit dist[][] avec un BFS (flood fill) a partir des cibles.
 // - versFin = VRAI : cibles = les 3 cases de RANGEE_FIN
 // - versFin = FAUX : cible  = (DEPART_R, DEPART_C)
@@ -572,7 +588,52 @@ int coteOppose(int cote) {
 //     mode CONNU_SEULEMENT : mur == FAUX ET connu == VRAI
 // - File simple : 2 tableaux fileR[30], fileC[30] + indices debut/fin
 void calculerDistances(bool versFin, int mode) {
-  // TODO
+  int fileR[NB_RANGEES * NB_COLONNES];
+  int fileC[NB_RANGEES * NB_COLONNES];
+  int debut = 0;  
+  int fin   = 0;  
+
+  // Toutes les distances a INFINI
+  for (int r = 0; r < NB_RANGEES; r++) {
+    for (int c = 0; c < NB_COLONNES; c++) {
+      dist[r][c] = INFINI;
+    }
+  }
+
+  // Les cibles sont a distance 0 et partent dans la file
+  if (versFin) {
+    for (int c = 0; c < NB_COLONNES; c++) {
+      dist[RANGEE_FIN][c] = 0;
+      fileR[fin] = RANGEE_FIN;
+      fileC[fin] = c;
+      fin++;
+    }
+  } else {
+    dist[DEPART_R][DEPART_C] = 0;
+    fileR[fin] = DEPART_R;
+    fileC[fin] = DEPART_C;
+    fin++;
+  }
+
+  // BFS : chaque case donne sa distance + 1 a ses voisins atteignables
+  while (debut < fin) {
+    int r = fileR[debut];
+    int c = fileC[debut];
+    debut++;
+
+    for (int cote = 0; cote < 4; cote++) {
+      if (!passageOuvert(r, c, cote, mode)) continue;
+
+      int vr = voisinR(r, cote);
+      int vc = voisinC(c, cote);
+      if (dist[vr][vc] == INFINI) {
+        dist[vr][vc] = dist[r][c] + 1;
+        fileR[fin] = vr;
+        fileC[fin] = vc;
+        fin++;
+      }
+    }
+  }
 }
 
 // Retourne le cote ouvert (selon mode) qui mene au voisin avec la plus petite dist.
