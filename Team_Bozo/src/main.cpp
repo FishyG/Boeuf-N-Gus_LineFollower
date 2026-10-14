@@ -12,8 +12,8 @@ Inclure les librairies de functions que vous voulez utiliser
 
 #include <LibRobus.h> // Essentielle pour utiliser RobUS
 
-#define PULSES_LEFT 1750
-#define PULSES_RIGHT 1750
+#define PULSES_LEFT 1700
+#define PULSES_RIGHT 1700
 
 #define pin_rouge 49
 #define pin_vert 48
@@ -57,7 +57,7 @@ typedef struct {
 // Si vous avez a modifier les valeur de PID, elles vont ici
 MotorParams motor_left = {
   .kp = 0.0004,
-  .ki = 0.00004,
+  .ki = 0.000006,
 
   .integral = 0,
   .speed = 0,
@@ -67,7 +67,7 @@ MotorParams motor_left = {
 
 MotorParams motor_right = {
   .kp = 0.0004,
-  .ki = 0.00004,
+  .ki = 0.000006,
 
   .integral = 0,
   .speed = 0,
@@ -144,9 +144,9 @@ void setup() {
 void loop() {
   if (pos[1] < 10) {
     Serial.print("Pos: ");
-		Serial.println(pos[1]);
-		int deplacement_fait = 0;
-		direction_possible[0] = 1;
+	Serial.println(pos[1]);
+	int deplacement_fait = 0;
+	direction_possible[0] = 1;
     direction_possible[1] = 1;
     direction_possible[2] = 1;
     direction_possible[3] = 1;
@@ -447,7 +447,7 @@ void detection_mur(){
 	int led_rouge;
 	int led_verte;
   
-  for (int i = 0; i < 500; i++)
+  for (int i = 0; i < 300; i++)
   {
     delay(2);
     SOFT_TIMER_Update();
@@ -614,15 +614,15 @@ void moveDistance(float distance_m) {
   motor_right.integral = 0;
 
   while (motor_left.total_pulses < distance_target || motor_right.total_pulses < distance_target) {
-    int32_t remaining =
-      distance_target -
-      (motor_left.total_pulses + motor_right.total_pulses) / 2;
-
-    if (remaining > 700) {
+    int32_t remaining = distance_target - (motor_left.total_pulses + motor_right.total_pulses) / 2;
+    if (remaining > 2000) {
+      motor_left.target_pulses = 600;
+      motor_right.target_pulses = 600;
+    }
+    else if (remaining > 1000) {
       motor_left.target_pulses = 400;
       motor_right.target_pulses = 400;
-    }
-    else {
+    } else {
       motor_left.target_pulses = 150;
       motor_right.target_pulses = 150;
     }
@@ -633,7 +633,11 @@ void moveDistance(float distance_m) {
   motor_left.target_pulses = 0;
   motor_right.target_pulses = 0;
 
-  motor_left.speed = 0;
-  motor_right.speed = 0;
+  for (int i = 0; i < 250; i++)
+  {
+    delay(2);
+    SOFT_TIMER_Update();
+  }
+
   SOFT_TIMER_Update();
 }
