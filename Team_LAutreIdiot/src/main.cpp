@@ -522,6 +522,110 @@ bool sifflet5kHz() {
   return false;
 }
 
+void detection_cul_de_sac()
+{
+  int pos_actuelle = historique[increment_historique];
+
+  for (int i = 0; i < increment_historique; ++i)
+  {
+    if (pos_actuelle == historique[i])
+    {
+      // cul-de-sac detecte
+      adjacence[historique[i]][historique[i + 1]] = 0;
+      increment_historique = i;
+      break; // pas obligatoire vu qu'on modifie increment_historique, mais pour la clarte du code
+    }
+  }
+}
+
+void marche_arriere()
+{
+  for(int i=0;i<4;i++){
+    AX_BuzzerON();
+    delay(100);
+    AX_BuzzerOFF();
+    delay(100);  
+  }
+  delay(400);
+
+}
+
+void lecture_capteur_ir()
+{
+  vert = digitalRead(vertpin);
+  rouge = digitalRead(rougepin);
+}
+
+void maj_adjacence_capteur_ir()
+{
+  int pos_actuelle = historique[increment_historique];
+
+  lecture_capteur_ir();
+
+  // TODO mettre la matrice d'adjacence à jour des 2 bords
+  if (vert || rouge)
+  {
+    switch (orientation)
+    {
+      case NORD:
+        adjacence[pos_actuelle][pos_actuelle + 3] = 0;
+        break;
+      case OUEST:
+        adjacence[pos_actuelle][pos_actuelle - 1] = 0;
+        break;
+      case EST:
+        adjacence[pos_actuelle][pos_actuelle + 1] = 0;
+        break;
+      default:
+        // 
+        break;
+    }
+  }
+}
+
+int numero(int direction)
+{
+  switch (direction)
+  {
+    case NORD:  return 0;
+    case EST:   return 1;
+    case SUD:   return 2;
+    case OUEST: return 3;
+  }
+  return 0;
+}
+
+int trouver_prochaine_orientation()
+{
+}
+
+void tourner_prochaine_orientation(int prochaine_orientation)
+{
+  int diff = (numero(prochaine_orientation) - numero(orientation) + 4) % 4;
+
+  if (diff == 1)
+  {
+    tourne_droit();
+  }
+  else if (diff == 3)
+  {
+    tourne_gauche();
+  }
+  else if (diff == 2)
+  {
+    demi_tour();
+  }
+
+  orientation = prochaine_orientation;
+}
+
+void init_historique()
+{
+  for (int i = 0; i < 30; ++i)
+  {
+    historique[i] = -1;
+  }
+}
 
 void setup(){
   BoardInit();
