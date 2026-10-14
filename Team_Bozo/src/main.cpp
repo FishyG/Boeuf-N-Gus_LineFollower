@@ -12,13 +12,13 @@ Inclure les librairies de functions que vous voulez utiliser
 
 #include <LibRobus.h> // Essentielle pour utiliser RobUS
 
-#define PULSES_LEFT 1200
-#define PULSES_RIGHT 1100
+#define PULSES_LEFT 1750
+#define PULSES_RIGHT 1750
 
 #define pin_rouge 49
 #define pin_vert 48
 
-#define distance 0.5
+#define distance 0.495
 
 // put function declarations here:
 char Va_Nord(char orientation);
@@ -56,7 +56,7 @@ typedef struct {
 
 // Si vous avez a modifier les valeur de PID, elles vont ici
 MotorParams motor_left = {
-  .kp = 0.0006,
+  .kp = 0.0004,
   .ki = 0.00004,
 
   .integral = 0,
@@ -66,7 +66,7 @@ MotorParams motor_left = {
 };
 
 MotorParams motor_right = {
-  .kp = 0.0006,
+  .kp = 0.0004,
   .ki = 0.00004,
 
   .integral = 0,
@@ -444,8 +444,8 @@ void ajouter_position_actuelle() {
 }
 
 void detection_mur(){
-	int led_rouge = digitalRead(pin_rouge);
-	int led_verte = digitalRead(pin_vert);
+	int led_rouge;
+	int led_verte;
   
   for (int i = 0; i < 500; i++)
   {
@@ -453,13 +453,15 @@ void detection_mur(){
     SOFT_TIMER_Update();
   }
 
+  led_rouge = digitalRead(pin_rouge);
+  led_verte = digitalRead(pin_vert);
   Serial.print("Mur: ");
 	if (led_rouge == LOW && led_verte == LOW){
 		mur = 1;
     Serial.println("yes");
 	} else {
     mur = 0;
-    Serial.println("yes");
+    Serial.println("no");
   }
   
 }
@@ -553,6 +555,12 @@ void turnLeft90() {
 
   motor_left.target_pulses = 0;
   motor_right.target_pulses = 0;
+  for (int i = 0; i < 250; i++)
+  {
+    delay(2);
+    SOFT_TIMER_Update();
+  }
+
   Serial.println("done left");
 }
 
@@ -586,8 +594,13 @@ void turnRight90() {
     SOFT_TIMER_Update();
   }
   
-  motor_left.total_pulses = 0;
-  motor_right.total_pulses = 0;
+  motor_left.target_pulses = 0;
+  motor_right.target_pulses = 0;
+  for (int i = 0; i < 250; i++)
+  {
+    delay(2);
+    SOFT_TIMER_Update();
+  }
   Serial.println("done right");
 }
 
@@ -605,7 +618,7 @@ void moveDistance(float distance_m) {
       distance_target -
       (motor_left.total_pulses + motor_right.total_pulses) / 2;
 
-    if (remaining > 3000) {
+    if (remaining > 700) {
       motor_left.target_pulses = 400;
       motor_right.target_pulses = 400;
     }
