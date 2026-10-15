@@ -69,7 +69,7 @@ REGLES POUR TRAVAILLER A 4 DANS CE FICHIER
 #define DIAMETRE_ROUE   76.2                      
 #define PULSES_PAR_MM   (PPT / (PI * DIAMETRE_ROUE))
 #define ENTRAXE         177.8    
-#define TAILLE_CASE     510.0
+#define TAILLE_CASE     505.0
 #define DISTANCE_AVANCE 510.0    // mm demandes aux roues pour 1 case : augmenter si le robot n'avance pas assez
 
 // ---- Grille : 10 rangees x 3 colonnes ----
@@ -83,6 +83,8 @@ REGLES POUR TRAVAILLER A 4 DANS CE FICHIER
 #define DEPART_R     0
 #define DEPART_C     1
 #define INFINI       999
+#define CASES_SORTIE      1
+#define FIN_MILIEU_FERMEE 1 
 // ---- Cotes (orientation) ----
 #define HAUT    0  
 #define DROITE  1
@@ -132,6 +134,7 @@ long erreurCap = 0;
 // SECTION 1 : deplacements
 void arret();
 void avancerCase();
+void avancerCases(int nb);
 void tourner(int quarts);
 void faireFace(int coteVoulu);
 long mmEnPulses(float mm);
@@ -167,6 +170,7 @@ void scannerCellule();
 bool naviguerVers(bool versFin, int mode);
 bool estArrive(bool versFin);
 bool verifierCote(int cote);
+bool retourAuDepart();
 
 
 /* ============================================================================
@@ -296,6 +300,12 @@ void mouvement(long cible, int sensG, int sensD, float vMax) {
 
 void avancerCase() {
   mouvement(mmEnPulses(DISTANCE_AVANCE), +1, +1, VITESSE);
+}
+
+// Avance de "nb" cases d'un seul coup (sans arret entre les cases) : plus rapide.
+void avancerCases(int nb) {
+  if (nb <= 0) return;
+  mouvement(mmEnPulses(DISTANCE_AVANCE * nb), +1, +1, VITESSE);
 }
 
 void tourner(int quarts) {
@@ -472,7 +482,7 @@ void beep(int nombre)
 
 // Remet mur[][][] et connu[][][] a FAUX, puis ajoute :
 // - les bordures (gauche de col 0, droite de col 2, bas de rangee 0, haut de rangee 9)
-// - les tapes fixes : rangees 1, 3, 5, 7, 9 -> ajouterMur(r, 0, DROITE) et ajouterMur(r, 1, DROITE)
+// - les tapes fixes du parcours AM (carres du milieu aux rangees 1, 3, 7 ; rangees 5 et 9)
 void initCarte(){
   for (int r =0; r < NB_RANGEES; r++) {
     for (int c = 0; c < NB_COLONNES; c++) {
@@ -496,10 +506,20 @@ void initCarte(){
   }
 
 
-  //Tapes fixe
-  for (int r = 1; r < NB_RANGEES; r += 2) {
-    ajouterMur(r, 0, DROITE);
-    ajouterMur(r, 1, DROITE);
+  int carres[3] = {1, 3, 7};
+  for (int i = 0; i < 3; i++) {
+    for (int cote = 0; cote < 4; cote++) {
+      ajouterMur(carres[i], 1, cote);
+    }
+  }
+
+  ajouterMur(5, 1, GAUCHE);
+  ajouterMur(5, 1, DROITE);
+
+  ajouterMur(RANGEE_FIN, 1, GAUCHE);
+  ajouterMur(RANGEE_FIN, 1, DROITE);
+  if (FIN_MILIEU_FERMEE) {
+    ajouterMur(RANGEE_FIN, 1, BAS);
   }
 }
 
@@ -810,6 +830,33 @@ void scannerCellule() {
 
 
 
+// Retour au Depart. Au retour, on a le droit de passer par-dessus les tapes,
+// et la colonne du milieu n'a jamais de panneau :
+//   1. aller dans la colonne du milieu (une case vers la gauche ou la droite)
+//   2. se tourner vers le bas et descendre tout droit, d'un seul coup, jusqu'a
+//      CASES_SORTIE case(s) apres le Depart : le robot sort du parcours
+//      (comme une rangee -1 sous la rangee 0)
+bool retourAuDepart() {
+  if (bumperArriere()) {
+    arret();
+    return false;
+  }
+
+  // 1. Rejoindre la colonne du milieu
+  if (robotC != DEPART_C) {
+    faireFace(robotC < DEPART_C ? DROITE : GAUCHE);
+    avancerCases(abs(robotC - DEPART_C));
+    robotC = DEPART_C;
+  }
+
+  // 2. Descendre tout droit et sortir du parcours
+  faireFace(BAS);
+  avancerCases(robotR - DEPART_R + CASES_SORTIE);
+  robotR = DEPART_R - CASES_SORTIE;   // hors de la grille (rangee -1)
+
+  return true;
+}
+
 // Deplace le robot case par case jusqu'a la cible.
 // Retourne VRAI si arrive, FAUX si echec (bloque, bumper, trop de pas).
 //
@@ -920,7 +967,7 @@ void loop() {
       break;
 
     case RETOUR:
-      if (naviguerVers(false, CONNU_SEULEMENT)) {
+      if (retourAuDepart()) {
         faireFace(HAUT);
         beep(3);
         etat = TERMINE;
