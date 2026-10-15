@@ -34,7 +34,7 @@ REGLES POUR TRAVAILLER A 4 DANS CE FICHIER
 #define PIN_5KHZ      A0   
 #define PIN_AMBIANT   A1    
 // ---- Seuils ---- base sur 3,2V min : 3,2 / 5 * 1024 = 655, max : 3,49 / 5 * 1024 = 714
-#define SEUIL_SIFFLET 550
+#define SEUIL_SIFFLET 500
 #define MAX_SIFFLET   714
 
 #define PERIODE          10       
@@ -483,7 +483,7 @@ bool sifflet5kHz() {
       son ++; 
     }
     // Si on a 18 sons, il y a un sifflet
-    if (son >= 18)
+    if (son >= 10)
     {
       return true;
     }
