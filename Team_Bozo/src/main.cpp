@@ -15,10 +15,15 @@ Inclure les librairies de functions que vous voulez utiliser
 #define PULSES_LEFT 1700
 #define PULSES_RIGHT 1700
 
+#define PIN_5KHZ      A0       
+// ---- Seuils ---- base sur 3,2V min : 3,2 / 5 * 1024 = 655, max : 3,49 / 5 * 1024 = 714
+#define SEUIL_SIFFLET 550
+#define MAX_SIFFLET   714
 #define pin_rouge 49
 #define pin_vert 48
 
 #define distance 0.495
+#define distance_1m 1
 
 // put function declarations here:
 char Va_Nord(char orientation);
@@ -38,6 +43,7 @@ void printDebug();
 void moveDistance(float distance_m);
 void turnLeft90();
 void turnRight90();
+bool sifflet5kHz();
 
 // Les IDs des timers je les mets ici
 enum TimerIDs {
@@ -82,32 +88,33 @@ int futur_pos[4];
 int map_deja_alle[30][4];
 int nb_deja_alle = 0;
 int mur = 0;
-int map_tape[][2][4] = {{{1,1,0,0},{1,1,0,0}}, //les positions ont 4 coordonées mais les 2 dernières sont toujours 0
-				{{2,1,0,0},{1,1,1,0}},
+int map_tape[][2][4] = {
+				{{1,1,0,0},{1,1,0,0}}, //les positions ont 4 coordonées mais les 2 dernières sont toujours 0
+				{{2,1,0,0},{0,1,1,0}},
 				{{3,1,0,0},{1,0,1,0}},
 				{{1,2,0,0},{1,0,0,1}},
-				{{2,2,0,0},{1,0,0,1}},
+				{{2,2,0,0},{0,0,0,0}},
 				{{3,2,0,0},{1,0,0,1}},
 				{{1,4,0,0},{1,0,0,1}},
-				{{2,4,0,0},{1,0,0,1}},
+				{{2,4,0,0},{0,0,0,0}},
 				{{3,4,0,0},{1,0,0,1}},
 				{{1,6,0,0},{1,0,0,1}},
-			  {{2,6,0,0},{1,0,0,1}},
+			  	{{2,6,0,0},{1,0,0,1}},
 				{{3,6,0,0},{1,0,0,1}},
-			  {{1,8,0,0},{1,0,0,1}},
-   			{{2,8,0,0},{1,0,0,1}},
-			  {{3,8,0,0},{1,0,0,1}},
-		    {{1,3,0,0},{1,1,0,1}},
-		    {{3,3,0,0},{1,0,1,1}},
-			  {{1,5,0,0},{1,1,0,1}},
-		    {{3,5,0,0},{1,0,1,1}},
-			  {{1,7,0,0},{1,1,0,1}},
+			  	{{1,8,0,0},{1,0,0,1}},
+   				{{2,8,0,0},{0,0,0,0}},
+			  	{{3,8,0,0},{1,0,0,1}},
+		    	{{1,3,0,0},{1,1,0,1}},
+		    	{{3,3,0,0},{1,0,1,1}},
+			  	{{1,5,0,0},{1,1,0,1}},
+		    	{{3,5,0,0},{1,0,1,1}},
+			  	{{1,7,0,0},{1,1,0,1}},
 				{{3,7,0,0},{1,0,1,1}},
-	      {{1,9,0,0},{1,1,0,1}}, 
-		    {{3,9,0,0},{1,0,1,1}},
-		    {{1,10,0,0},{0,0,0,1}},
-		    {{2,10,0,0},{0,0,0,1}},
-	      {{3,10,0,0},{0,0,0,1}}};
+	    		{{1,9,0,0},{1,1,0,1}}, 
+				{{3,9,0,0},{1,0,1,1}},
+		    	{{1,10,0,0},{0,0,0,1}},
+		    	{{2,10,0,0},{0,0,0,0}},
+	      		{{3,10,0,0},{0,0,0,1}}};
 
 void setup() {
   BoardInit();
@@ -129,13 +136,13 @@ void setup() {
   SOFT_TIMER_SetCallback(TIMER_ID_DEBUG, printDebug);
   SOFT_TIMER_SetDelay(TIMER_ID_DEBUG, 500);
   SOFT_TIMER_SetRepetition(TIMER_ID_DEBUG, -1);
-  SOFT_TIMER_Enable(TIMER_ID_DEBUG);
+  //SOFT_TIMER_Enable(TIMER_ID_DEBUG);
 
   delay(10);
 
   Serial.println("Waiting...");
-  while (!ROBUS_IsBumper(REAR)) {
-    delay(80);
+  while ((!ROBUS_IsBumper(REAR)) && !sifflet5kHz()) {
+    delay(20);
     SOFT_TIMER_Update();
   }
   Serial.println("Going!");
@@ -171,7 +178,7 @@ void loop() {
 			
 				if (direction_possible[0] == 1){
           Serial.println("Doing move 1");
-					moveDistance(distance);
+					moveDistance(distance_1m);
           Serial.println("Done");
 					pos[1]++;
 					deplacement_fait++;
@@ -640,4 +647,34 @@ void moveDistance(float distance_m) {
   }
 
   SOFT_TIMER_Update();
+}
+
+// Fonction de detection de sifflet 5kHz : retourne vrai ou faux
+bool sifflet5kHz() {
+  Serial.println("sifflet");
+  // Son qui doit etre detecte au moins 18 fois sur 20
+  int son = 0;
+  // 20 iterations
+  for (int i = 0; i < 20; i++)
+  {
+    // Lecture du sifflet PIN A0
+    int sifflet = analogRead(PIN_5KHZ);
+    // s'assurer qu'il s'agit du sifflet
+    if (sifflet >= SEUIL_SIFFLET && sifflet <= MAX_SIFFLET)
+    {
+      son ++; 
+    }
+    // Si on a 18 sons, il y a un sifflet
+    if (son >= 18)
+    {
+	  Serial.println("yes sifflet");
+      return true;
+    }
+    delay(50);
+  }
+  // Pas de sifflet
+  //beep(4);
+  delay(500);
+  Serial.println("no sifflet");
+  return false;
 }
