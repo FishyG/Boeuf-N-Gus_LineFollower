@@ -42,17 +42,20 @@ REGLES POUR TRAVAILLER A 4 DANS CE FICHIER
 #define ACCEL            1.75     
 #define KP               0.003    
 #define KS               0.003    
-#define PAUSE_MOUVEMENT  0  
+#define PAUSE_MOUVEMENT  0        // ms d'arret apres une ligne droite (le maintien suffit)
+#define PAUSE_VIRAGE     100      // ms apres un virage : le robot doit etre immobile pour mesurer l'angle
+#define TOLERANCE_ARRET  15       // pulses : fin du maintien des que les 2 roues sont a moins de ca
 
 
-#define VITESSE          0.45   
-#define V_FIN            0.10     
+#define VITESSE          0.55     
+#define V_FIN            0.13     
 #define V_MAINTIEN       0.15     
-#define TEMPS_MAINTIEN   100      
+#define TEMPS_MAINTIEN   60       
 #define RATIO_DROITE     1.0      
 
 
 #define VITESSE_TOURNE   0.25     
+#define ACCEL_TOURNE     1.0     
 #define V_FIN_TOURNE     0.15     
 #define GLISSE_VIRAGE    62       
 #define FACTEUR_TOURNE_D 1.07   
@@ -69,8 +72,8 @@ REGLES POUR TRAVAILLER A 4 DANS CE FICHIER
 #define DIAMETRE_ROUE   76.2                      
 #define PULSES_PAR_MM   (PPT / (PI * DIAMETRE_ROUE))
 #define ENTRAXE         177.8    
-#define TAILLE_CASE     505.0
-#define DISTANCE_AVANCE 510.0    // mm demandes aux roues pour 1 case : augmenter si le robot n'avance pas assez
+#define TAILLE_CASE     508.0
+#define DISTANCE_AVANCE 508.0
 
 // ---- Grille : 10 rangees x 3 colonnes ----
 //   rangee 9  [Fin][Fin][Fin]
@@ -83,7 +86,8 @@ REGLES POUR TRAVAILLER A 4 DANS CE FICHIER
 #define DEPART_R     0
 #define DEPART_C     1
 #define INFINI       999
-#define CASES_SORTIE      1
+#define CASES_SORTIE      1   // au retour : cases a faire APRES le Depart pour sortir du parcours
+#define RANGEE_RETOUR     NB_RANGEES   // rangee 10 (= 11e rangee, hors du parcours) : le retour passe par la
 #define FIN_MILIEU_FERMEE 1 
 // ---- Cotes (orientation) ----
 #define HAUT    0  
@@ -124,7 +128,10 @@ int  dist[NB_RANGEES][NB_COLONNES];
 
 long resteG    = 0;   
 long resteD    = 0;   
-long erreurCap = 0;   
+long erreurCap = 0;
+
+long sommeElan = 0;
+int  nbVirages = 0;   
 
 
 /* ============================================================================
@@ -141,6 +148,7 @@ long mmEnPulses(float mm);
 void mouvement(long cible, int sensG, int sensD, float vMax);
 void testLigneDroite();
 void testVirages();
+void testDemiTours();
 void testCarres();
 void testAllerRetour();
 void testFaireFace();
@@ -214,7 +222,7 @@ void mouvement(long cible, int sensG, int sensD, float vMax) {
   const float dt    = PERIODE / 1000.0;
   const float vMaxP = vMax * V_PPS_MAX;                                    
   const float vFinP = (ligneDroite ? V_FIN : V_FIN_TOURNE) * V_PPS_MAX;   
-  const float accP  = ACCEL * V_PPS_MAX;                                   
+  const float accP  = (ligneDroite ? ACCEL : ACCEL_TOURNE) * V_PPS_MAX;                                   
 
   float pRef = 0;  
   float vRef = 0;  
@@ -260,6 +268,10 @@ void mouvement(long cible, int sensG, int sensD, float vMax) {
 
     float erreurG = refG - posG;
     float erreurD = refD - posD;
+
+    
+    if (maintien && abs(erreurG) <= TOLERANCE_ARRET && abs(erreurD) <= TOLERANCE_ARRET) break;
+
     float sync = KS * (erreurG - erreurD);
 
     float vG = constrain(vAvance + KP * erreurG + sync, vMinCmd, vMaxCmd);
@@ -270,7 +282,7 @@ void mouvement(long cible, int sensG, int sensD, float vMax) {
     while (millis() - debutPeriode < PERIODE) {}   
   }
   arret();
-  delay(PAUSE_MOUVEMENT);   
+  delay(ligneDroite ? PAUSE_MOUVEMENT : PAUSE_VIRAGE);
   long finG = ENCODER_Read(LEFT);
   long finD = ENCODER_Read(RIGHT);
 
@@ -279,6 +291,8 @@ void mouvement(long cible, int sensG, int sensD, float vMax) {
     resteD = constrain(sensD * cibleD - finD, -300, 300);
   } else {
     long ecart = (abs(finG) + abs(finD)) / 2 - cibleNormale;
+    sommeElan += (abs(finG) + abs(finD)) / 2 - cible;   // pulses faits apres la coupure
+    nbVirages++;
     if (sensG > 0) erreurCap += ecart;
     else           erreurCap -= ecart;
     erreurCap = constrain(erreurCap, -150, 150);
@@ -293,6 +307,7 @@ void mouvement(long cible, int sensG, int sensD, float vMax) {
       Serial.print("  resteG ");  Serial.print(resteG);
       Serial.print("  resteD ");  Serial.println(resteD);
     } else {
+      Serial.print("  elan ");      Serial.print((abs(finG) + abs(finD)) / 2 - cible);
       Serial.print("  erreurCap "); Serial.println(erreurCap);
     }
   }
@@ -308,14 +323,20 @@ void avancerCases(int nb) {
   mouvement(mmEnPulses(DISTANCE_AVANCE * nb), +1, +1, VITESSE);
 }
 
+// Tourne sur place. quarts : +1 = 90 deg droite, -1 = 90 deg gauche, 2 = demi-tour.
+// Un demi-tour = 2 virages de 90 deg : meme calibration, et erreurCap corrige entre les deux.
 void tourner(int quarts) {
-  if (quarts == 0) return;
+  long cible = mmEnPulses(PI * ENTRAXE / 4.0);   // un quart de tour
 
-  long cible = mmEnPulses(PI * ENTRAXE / 4.0 * abs(quarts));
-  if (quarts > 0) mouvement(cible * FACTEUR_TOURNE_D, +1, -1, VITESSE_TOURNE);  
-  else            mouvement(cible * FACTEUR_TOURNE_G, -1, +1, VITESSE_TOURNE);   
-
-  direction = ((direction + quarts) % 4 + 4) % 4; 
+  for (int i = 0; i < abs(quarts); i++) {
+    if (quarts > 0) {
+      mouvement(cible * FACTEUR_TOURNE_D, +1, -1, VITESSE_TOURNE);   // droite
+      direction = (direction + 1) % 4;
+    } else {
+      mouvement(cible * FACTEUR_TOURNE_G, -1, +1, VITESSE_TOURNE);   // gauche
+      direction = (direction + 3) % 4;
+    }
+  }
 }
 
 void faireFace(int coteVoulu) {
@@ -334,9 +355,24 @@ void testLigneDroite() {
 
 
 void testVirages() {
+  sommeElan = 0;
+  nbVirages = 0;
+
   for (int i = 0; i < 4; i++) tourner(+1);
   delay(PAUSE_ENTRE_TESTS);
   for (int i = 0; i < 4; i++) tourner(-1);
+
+  
+  Serial.print("--- Elan moyen : ");
+  Serial.print(sommeElan / nbVirages);
+  Serial.println("  -> mettre cette valeur dans GLISSE_VIRAGE ---");
+}
+
+
+void testDemiTours() {
+  for (int i = 0; i < 2; i++) tourner(2);
+  delay(PAUSE_ENTRE_TESTS);
+  for (int i = 0; i < 2; i++) tourner(-2);
 }
 
 
@@ -377,6 +413,10 @@ void testsDeplacement() {
 
   Serial.println("--- Test virages ---");
   testVirages();
+  delay(PAUSE_ENTRE_TESTS);
+
+  Serial.println("--- Test demi-tours ---");
+  testDemiTours();
   delay(PAUSE_ENTRE_TESTS);
 
   Serial.println("--- Test carres ---");
@@ -832,27 +872,28 @@ void scannerCellule() {
 
 // Retour au Depart. Au retour, on a le droit de passer par-dessus les tapes,
 // et la colonne du milieu n'a jamais de panneau :
-//   1. aller dans la colonne du milieu (une case vers la gauche ou la droite)
-//   2. se tourner vers le bas et descendre tout droit, d'un seul coup, jusqu'a
-//      CASES_SORTIE case(s) apres le Depart : le robot sort du parcours
-//      (comme une rangee -1 sous la rangee 0)
+//   1. monter jusqu'a la rangee 11 (RANGEE_RETOUR), au-dessus des Fin, hors du parcours
+//   2. dans cette rangee, aller dans la colonne du milieu
+//   3. descendre tout droit par le milieu, d'un seul coup, jusqu'a CASES_SORTIE
+//      case(s) sous le Depart : le robot sort du parcours (rangee -1)
 bool retourAuDepart() {
   if (bumperArriere()) {
     arret();
     return false;
   }
 
-  // 1. Rejoindre la colonne du milieu
+  faireFace(HAUT);
+  avancerCases(RANGEE_RETOUR - robotR);
+  robotR = RANGEE_RETOUR;
+
   if (robotC != DEPART_C) {
     faireFace(robotC < DEPART_C ? DROITE : GAUCHE);
     avancerCases(abs(robotC - DEPART_C));
     robotC = DEPART_C;
   }
-
-  // 2. Descendre tout droit et sortir du parcours
   faireFace(BAS);
-  avancerCases(robotR - DEPART_R + CASES_SORTIE);
-  robotR = DEPART_R - CASES_SORTIE;   // hors de la grille (rangee -1)
+  avancerCases(RANGEE_RETOUR - DEPART_R + CASES_SORTIE);
+  robotR = DEPART_R - CASES_SORTIE;
 
   return true;
 }
@@ -927,7 +968,7 @@ bool naviguerVers(bool versFin, int mode) {
 
 void setup() {
   BoardInit();
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   pinMode(PIN_VERT, INPUT);
   pinMode(PIN_ROUGE, INPUT);
